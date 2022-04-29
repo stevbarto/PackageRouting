@@ -26,7 +26,7 @@ class LinkedList:
     def __init__(self):
         self.size = 0
         self.base_node = Node(None, None, -1)
-        self.tail_node = Node(None, None, -1)
+        self.tail_node = Node(None, None, -2)
         self.base_node.next_node = self.tail_node
         self.tail_node.last_node = self.base_node
         self.current_node = self.base_node

@@ -1,6 +1,7 @@
 from datetime import datetime
 import re
 
+
 class package:
     """
     Class representation of a package object.  Parameters requiring int values or string values which
@@ -29,11 +30,29 @@ class package:
 
     """
 
+    truck_id = "No truck"
+
     address = "No Address"
 
-    STATUS_LIST = ["AT HUB", "IN TRANSIT", "OUT FOR DELIVERY", "DELIVERED"]
+    connected_packages = []
 
-    def __init__(self, id, address, deadline, city, state, zip_code, weight, status):
+    hold_hour = -1
+    hold_min = -1
+
+    city = 'Salt Lake City'
+
+    status_hour = 8
+    status_min = 0
+
+    waitlist = 0
+
+    wait_hour = -1
+
+    wait_min = -1
+
+    STATUS_LIST = ["AT HUB", "ENROUTE", "DELIVERED"]
+
+    def __init__(self, id, address, deadline, city, zip_code, weight, status):
         if isinstance(id, int):
             self.id = id
         else:
@@ -71,6 +90,8 @@ class package:
 
         self.instructions = ""
 
+    def __getitem__(self):
+        return self
 
     def get_id(self):
         return self.id
@@ -95,7 +116,23 @@ class package:
         return self.weight
 
     def get_status(self):
-        return self.STATUS_LIST[self.status - 1]
+        tod_string = " AM"
+        hour_string = self.status_hour
+        if self.status_hour > 12:
+            hour_string = self.status_hour - 12
+            tod_string = " PM"
+
+        if self.status_hour < 10:
+            min_string = "0" + str(self.status_hour)
+        else:
+            min_string = str(self.status_hour)
+
+
+
+        status_string = self.STATUS_LIST[self.status - 1] + " at " + str(hour_string) + ":" \
+                        + min_string + tod_string
+
+        return status_string
 
     def set_address(self, address):
         self.address = address
@@ -103,8 +140,10 @@ class package:
     def set_deadline(self, deadline):
         self.deadline = deadline
 
-    def set_status(self, status):
+    def set_status(self, status, hour, min):
         self.status = status
+        self.status_hour = hour
+        self.status_min = min
 
     def set_instructions(self, instructions):
         self.instructions = instructions
@@ -123,3 +162,23 @@ class package:
                 only_digs = 0
 
         return only_digs
+
+    def set_truck(self, truck_id):
+        self.truck_id = truck_id
+
+    def get_truck(self):
+        return self.truck_id
+
+    def connect_package(self, package):
+        already_there = 0
+        for i in range(len(self.connected_packages)):
+            if package.get_id == self.connected_packages[i].get_id():
+                already_there = 1
+        if already_there == 0:
+            self.connected_packages.append(package)
+
+    def set_hold(self):
+        self.waitlist = 1
+
+
+

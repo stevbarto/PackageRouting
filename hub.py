@@ -22,5 +22,8 @@ class Hub:
             if location_id == self.delivery_locations[i].id:
                 self.delivery_locations.remove(self.delivery_locations[i])
 
+    def get_address(self):
+        return self.address
+
     def get_id(self):
         return self.id

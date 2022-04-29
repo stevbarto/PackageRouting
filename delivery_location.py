@@ -2,6 +2,8 @@
 
 class DeliveryLocation:
 
+    package_ids = []
+
     def __init__(self, id, name, address, zip_code, hub):
         self.id = id
         self.name = name
@@ -20,3 +22,9 @@ class DeliveryLocation:
 
     def set_address(self, address):
         self.address = address
+
+    def get_address(self):
+        return self.address
+
+    def add_package(self, package_id):
+        self.package_ids.append(package_id)

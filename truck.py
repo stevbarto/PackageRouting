@@ -4,11 +4,20 @@ import wgups_hash_table
 
 
 class Truck:
+    """
+    Truck class for the package router program
+    """
 
+    # Constant varibles
     AVG_SPEED = 18
     MAX_LOAD = 16
 
     def __init__(self, id, hub):
+        """
+        Truck class constructor method
+        :param id: int id value
+        :param hub: hub object
+        """
         self.last_stop = -1
         self.next_stop = -1
         self.id = id
@@ -23,16 +32,25 @@ class Truck:
         self.stop_min = 0
         self.at_hub = 1
         self.hub = hub
-
         self.last_stop = hub
         self.next_stop = hub
 
     def load_package(self, package, hour, min):
+        """
+        Method loads a package into the truck object
+        :param package: wgups_package object
+        :param hour: int hour value
+        :param min: int minute value
+        :return: None
+        """
+
+        # Check if the package is already here
         present = 0
         for i in range(len(self.delivery_queue)):
             if self.delivery_queue[i].get_id() == package.get_id():
                 present = 1
 
+        # If not, load it
         if present == 0:
             if len(self.delivery_queue) <= self.MAX_LOAD:
                 self.delivery_queue.append(package)
@@ -42,6 +60,13 @@ class Truck:
                 self.weight = self.weight + package.get_weight()
 
     def deliver_packages(self, hour, min):
+        """
+        Method delivers packages for the location stored in the next_stop variable
+        :param hour: int hour value
+        :param min: int minute value
+        :return: int list of IDs delivered here
+        """
+        # Get the address for checking
         if len(self.route_queue) > 0:
             location_address = self.route_queue[0].get_address()
         else:
@@ -50,6 +75,7 @@ class Truck:
         delivered_id = []
         j = 0
         size = len(self.delivery_queue)
+        # Loop through packages and deliver any with the above address
         while j < size:
             package_address = self.delivery_queue.pop(0)
             if package_address.get_address() == location_address:
@@ -63,7 +89,11 @@ class Truck:
         return delivered_id
 
     def search_package(self, id):
-
+        """
+        Method searches for the designated package
+        :param id:
+        :return:
+        """
         package = None
 
         for i in range(len(self.delivery_queue)):

@@ -7,11 +7,13 @@ import csv
 import datetime
 import hub
 import truck
-import node
-import linked_list
 
 
 class PackageRouter:
+    """
+    PackageRouter class runs the base logic and methods for the package routing application.
+    """
+    # Instance variables
     MAX_DISTANCE = 140
     packages = wgups_hash_table.hashTable(30, 1)
     package_load_queue = []
@@ -33,11 +35,17 @@ class PackageRouter:
     min_string = ''
 
     def __init__(self):
-        # self.dist_queue = []
-        # self.location_queue = []
+        """
+        Constructor method for the package router object
+        """
+        # Tracks the unique location ID numbers
         self.location_id = 1
 
     def import_packages(self):
+        """
+        Method to import packages from the designated file
+        :return: None
+        """
         # Read in the package file to parse package data
         with open('WGUPSPackageFile.csv', mode='r') as package_file:
             reader = csv.reader(package_file)
@@ -45,13 +53,14 @@ class PackageRouter:
             i = -1
 
             print("Importing package data from " + package_file.name)
-
+            # ========================= Loop through rows to get package data ==========================
             for row in reader:
                 i = i + 1
 
+                # Avoid header lines
                 if i < 8:
                     continue
-
+                # Initiate variables for fields
                 id = int(row[0])
                 address = row[1]
                 city = row[2]
@@ -68,6 +77,7 @@ class PackageRouter:
                 hour_string = ''
                 minute_string = ''
 
+                # Read and format the deadline data
                 for char in time:
                     if char == 'E':
                         hour_string = '17'
@@ -93,32 +103,38 @@ class PackageRouter:
                 time_now = datetime.datetime.now()
                 deadline = datetime.datetime(time_now.year, time_now.month, time_now.day, hour, minute, 0, 0)
 
+                # Set the status to at hub
                 status = 1
-
+                # Format weight data
                 if self.min_weight < 0:
                     self.min_weight = weight
 
                 if weight < self.min_weight:
                     self.min_weight = weight
-
+                # Create the new package with the read in data from this row
                 new_package = wgups_package.package(id, address, deadline, city, zip_code, weight, status)
-
+                # Catch instructions if there are any
                 if instructions != '':
                     new_package.set_instructions(instructions)
                     self.special_cases.append(new_package)
-
+                # Insert the package in the hash table
                 self.packages.insert(new_package.get_id(), new_package)
 
             print("Package data imported")
 
     def import_locations(self):
+        """
+        Method to import locations into the adjacency matrix.
+        :return: None
+        """
+        # Pull data from the designated file
         with open('WGUPSDistanceTable.csv', mode='r') as location_file:
             reader = csv.reader(location_file)
 
             i = 0
 
             print("Importing location data from " + location_file.name)
-
+            # ======================== Loop through rows to handle data =================================
             for row in reader:
                 i = i + 1
 
@@ -267,24 +283,21 @@ class PackageRouter:
                             location_zip = location_zip + address_data[j]
                         j = j + 1
 
+                    # Designate a hub
                     if self.current_hub.id != -1:
                         location = delivery_location.DeliveryLocation(self.location_id, location_name, location_address,
                                                                       location_zip, self.current_hub)
                     else:
                         raise RuntimeError("No hub has been created!")
 
+                    # Get a unique location ID
                     self.location_id = self.location_id + 1
-
-                    if self.current_hub.id != -1:
-                        self.current_hub.add_location(location)
-                    else:
-                        raise RuntimeError("No hub has been created!")
-
+                    # Insert the location as a new vertex in the adjacency matrix
                     self.map.insert_vertex()
-
+                    # Add the location to the reference object list
                     self.locations.append(location)
 
-                    # get the distance data that exists for the current row
+                    # get the distance data that exists for the current row, insert edges in the adjacency matrix
                     n = 2
                     while n - 2 < len(self.locations):
                         if row[n] != '':
@@ -292,7 +305,7 @@ class PackageRouter:
                             k = n - 2
                             self.map.insert_edge(location, self.locations[k], float(row[n]))
                         n = n + 1
-
+        # Create the assigned addresses binary tracker
         for i in range(len(self.locations)):
             self.assigned_addresses.append(0)
         print("Location data imported")
@@ -353,6 +366,12 @@ class PackageRouter:
         return 0
 
     def same_string(self, string1, string2):
+        """
+        Determines if two strings have equal values
+        :param string1: str obect
+        :param string2: str object
+        :return: 0 if no, 1 if yes
+        """
 
         if len(string1) != len(string2):
             return 0
@@ -365,11 +384,23 @@ class PackageRouter:
         return match
 
     def load_package(self, truck_id, package, hour, minute):
+        """
+        Loads a package into the designated truck
+        :param truck_id: int truck ID
+        :param package: wgups_package object
+        :param hour: int hour value
+        :param minute: int minute value
+        :return: None
+        """
         open_truck = self.trucks[truck_id - 1]
         if len(open_truck.delivery_queue) < open_truck.MAX_LOAD:
             open_truck.load_package(package, hour, minute)
 
     def queue_packages(self):
+        """
+        Method to create a package queue for loading
+        :return: None
+        """
         # create a load queue
         load_queue = []
 
@@ -382,6 +413,7 @@ class PackageRouter:
                     if package.status == 1:
                         load_queue.append(package)
 
+        # Ensure that no package address is marked as already visited
         for i in range(len(self.package_load_queue)):
             package = self.package_load_queue[i]
             for j in range(len(self.locations)):
@@ -394,17 +426,12 @@ class PackageRouter:
         # sort load queue by deadline
         self.package_load_queue = self.sort_package_queue_by_deadline(load_queue)
 
-        for i in range(len(self.package_load_queue)):
-            package = self.package_load_queue[i]
-            for j in range(len(self.locations)):
-                location = self.locations[j]
-                location_index = location.get_id() - 1
-                if package.get_address() == location.get_address():
-                    if self.assigned_addresses[location_index] == 1:
-                        self.assigned_addresses[location_index] = 0
-
     def sort_package_queue_by_deadline(self, queue):
-
+        """
+        Method which sorts the package queue by deadline using insertion sort
+        :param queue: wgups_package list
+        :return: queue of wgups_packages
+        """
         index = 1
         cache = ''
 
@@ -436,26 +463,24 @@ class PackageRouter:
         return queue
 
     def load_truck(self, current_truck, hour, minute, load_queue):
-
+        """
+        Method to route and load the designated truck
+        :param current_truck: truck object
+        :param hour: int hour value
+        :param minute: int minute value
+        :param load_queue: wgups_package queue
+        :return: None
+        """
+        # Ensure the truck is in service
         if current_truck.driver == -1:
             return
-
-        # self.recursive_load(hub, truck, queue, self.visited)
-        # self.recursive_load2(hub.get_id(), truck, self.visited)
 
         # get the base list of distances to begin routing
         base_list = self.map.adj_matrix[0]
 
         base_hub = self.locations[0]
 
-        #furthest_location = self.locations[len(self.locations) - 1]
-
-        #furthest_package = self.get_furthest(self.package_load_queue)
-
-        #for i in range(len(self.locations)):
-        #    if self.locations[i].get_address == furthest_package.get_address():
-        #        furthest_location = self.locations[i]
-
+        # Get the furthes point from the hub
         furthest_point = 0
 
         for i in range(len(base_list)):
@@ -465,55 +490,44 @@ class PackageRouter:
 
         furthest_location = self.locations[furthest_point]
 
+        # Generate the route queue for the package list
         route_queue = self.iterative_route(base_hub.get_id(), furthest_location.get_id())
 
+        # ========================== Loop through packages and the route queue to load ======================
         for i in range(len(route_queue)):
-            if current_truck.get_load() >= current_truck.MAX_LOAD:
-                break
+            # Get the current location for inspection
             current_location = route_queue.pop(0)
             current_address = current_location.get_address()
             loaded = 0
+
+            # Loop through load queue locations
             for j in range(len(load_queue)):
+                # If the truck is not fully loaded:
                 if current_truck.get_load() >= current_truck.MAX_LOAD:
                     break
+                # Get the current package for inspection
                 current_package = load_queue.pop(0)
+                # If its address matches the location
                 if current_package.get_address() == current_address:
+                    # Load the package and add a stop
                     current_truck.load_package(current_package, hour, minute)
                     current_truck.add_stop(current_location)
                     self.assigned_addresses[current_location.get_id() - 1] = 1
                     loaded = 1
                 else:
+                    # Otherwise put the package back on the end
                     load_queue.append(current_package)
             if loaded == 0:
+                # Otherwise put the location back on the end
                 route_queue.append(current_location)
 
-    #        plq_length = len(self.package_load_queue)
-
-    #        package = None
-
-    #       for i in range(plq_length):
-    #           # while current_truck.get_load() < 16:
-    #           if current_truck.get_load() < current_truck.MAX_LOAD:
-    #               break
-
-    #           package = self.package_load_queue.pop(0)
-
-    #           for j in range(len(route_queue)):
-    #               if package.get_address() == route_queue[j].get_address():
-    #                   if current_truck.get_load() < current_truck.MAX_LOAD:
-    #                       current_truck.load_package(package, hour, minute)
-
-    #                       package = None
-
-    #                       plq_length = len(self.package_load_queue)
-
-    #                        self.location_queue[route_queue[j].get_id() - 1] = 1
-
-    #                        current_truck.add_stop(route_queue[j])
-
-    #                        break
-
     def iterative_route(self, location_id, dest_id):
+        """
+        Breadth first search to find the shortest way through the route of packages
+        :param location_id: int start location id
+        :param dest_id: int finish point id
+        :return: delivery_location list of stops
+        """
         # Create a queue of visited locations
         visited_queue = []
 
@@ -545,9 +559,7 @@ class PackageRouter:
         # ==============================================START LOOP HERE==========================================
         # =======================================================================================================
         while len(visited_queue) > 0:
-        #while len(path) < len(self.locations):
-        # while len(path) < open_locations:
-
+            # Redundant break loop criteria (I had an issue where the length was 0, but it continued anyway...)
             if len(path) >= len(self.locations):
                 break
 
@@ -557,16 +569,12 @@ class PackageRouter:
             # Grab the next up location in the queue to get its nearest neighbor
             current_loc_id = visited_queue.pop(0)
 
-            # If we have reached the destination ID, break the loop
-            #if current_loc_id == dest_id & len(path) > 0:
-            #    break
-
             # Get the list of distances from the adjacency matrix for this location
             adjacent_list = self.map.adj_matrix[current_loc_id - 1]
 
             # Arbitrarily set the closest index to 0
             closest_index = 0
-
+            # Ensure that index is valid
             if visited_log[closest_index] == 1:
                 if 0 <= closest_index < len(adjacent_list) - 1:
                     closest_index = closest_index + 1
@@ -581,118 +589,64 @@ class PackageRouter:
 
             # =========================== INNER LOOP TO FIND THE CLOSEST NEIGHBOR ==============================
             for i in range(len(adjacent_list)):
-
+                # Pull the next location
                 next_loc_id = self.locations[i].get_id()
-
-                # checks here!
-                # wait listed?
 
                 # If the location is unvisited:
                 if visited_log[i] == 0:
                     visited_queue.append(next_loc_id)
                     visited_log[i] = 1
                     path.append(self.locations[i])
-                    # And it is closer than the closest index based on the distance list:
-                    #if 0.0 < adjacent_list[i] < adjacent_list[closest_index]:
-                        # Capture this index as the closest
-                        #closest_index = i
-
-            # Add the closest neighbor to the queue, mark it as visited,
-            # add it to path, remove it form loc queue
-            #visited_queue.append(closest_index + 1)
-            #visited_log[closest_index] = 1
-            #path.append(self.locations[closest_index])
-            #if self.locations[closest_index].get_id() == dest_id:
-            #    break
-            # self.location_queue[closest_index] = 1
-            # next_loc_id = self.locations[i].get_id()
 
         return path
 
-    def get_location(self, node):
-
-        row = 0
-
-        node_address = node.get_address()
-
-        for i in range(len(self.locations)):
-            if self.locations[i].get_address() == node_address:
-                row = i
-
-        return row
-
-    def sort_nums(self, old_list):
-
-        list1 = old_list
-
-        list2 = self.locations
-
-        lists = []
-
-        index = 1
-        cache = 0
-
-        while index < len(list1):
-
-            i = index
-
-            j = i - 1
-
-            while j >= 0:
-
-                if list1[i] < list1[j]:
-                    # TODO: Instead of just sorting the distnaces, I need a good location list to sort as well to match
-                    cache = list1[i]
-                    loc_cache = list2[i]
-                    list1[i] = list1[j]
-                    list2[i] = list2[j]
-                    list1[j] = cache
-                    list2[j] = loc_cache
-
-                    i = i - 1
-
-                j = j - 1
-
-            index = index + 1
-
-            lists.append(list1)
-            lists.append(list2)
-
-        return lists
-
     def make_trucks(self, new_hub):
+        """
+        Method to make new trucks assigned to the hub.
+        :param new_hub: Hub object
+        :return: None
+        """
+        # Make trucks
         truck1 = truck.Truck(1, new_hub)
         truck2 = truck.Truck(2, new_hub)
         truck3 = truck.Truck(3, new_hub)
+        # Load the trucks
         self.trucks.append(truck1)
         self.trucks.append(truck2)
         self.trucks.append(truck3)
+        # Add available drivers
         for i in range(2):
             self.drivers.append(driver.Driver(i))
         for i in range(len(self.drivers)):
             self.trucks[i].set_driver(self.drivers[i])
 
     def get_stop_time(self, truck_param):
-
-        truck_one_leg = truck_param.get_next_leg()
-
-        t1_last = truck_one_leg[0].get_id()
-        t1_next = truck_one_leg[1].get_id()
-
-        truck_one_leg = self.map.adj_matrix[t1_last - 1][t1_next - 1]
-
-        t1_leg_time = truck_one_leg / 18
+        """
+        Method to take the next and last stops for a truck and get the time it should arrive.
+        :param truck_param: Truck object
+        :return: int list with hour value at 0 and minute value at 1.
+        """
+        # Get the lag data from the truck
+        truck_leg = truck_param.get_next_leg()
+        # Capture next and last stops
+        t1_last = truck_leg[0].get_id()
+        t1_next = truck_leg[1].get_id()
+        # Get the distance value from the adjacency matrix
+        truck_leg = self.map.adj_matrix[t1_last - 1][t1_next - 1]
+        # Get time to complete the leg (Miles / (Miles/Hour)) = (Miles * (Hours/Mile)
+        t1_leg_time = truck_leg / 18
 
         t1_leg_hr = 0
         t1_leg_min = 0
-
+        # ====================== Loop here to get the right hour value out of the total hours time ====================
         while t1_leg_time > 1:
             if t1_leg_time > 1:
                 t1_leg_hr = t1_leg_hr + 1
                 t1_leg_time = t1_leg_time - 1
 
+        # Get total minutes from the total hours left over from above
         t1_leg_min = int(t1_leg_time * 60)
-
+        # Break it into components, put it in array and return it.
         t1_target_hour = self.trucks[0].stop_hour + t1_leg_hr
         t1_target_min = self.trucks[0].stop_hour + t1_leg_min
 
@@ -700,13 +654,12 @@ class PackageRouter:
 
         return stop_time
 
-    def reset_assigned_log(self):
-        for i in range(len(self.locations)):
-            self.assigned_addresses[i] = 0
+    def get_leg_distance(self, truck):
+        """
+        Method gets the distance of the current leg for the truck parameter
+        :param truck: truck object
+        :return: float distance from the adjacency matrix
+        """
+        adj_matrix = self.map.adj_matrix
 
-    def get_furthest(self, package_list):
-        furthest = package_list[0]
-        for i in range(len(package_list)):
-            if self.map.adj_matrix[0][package_list[i].get_id() - 1] < self.map.adj_matrix[0][furthest.get_id() - 1]:
-                furthest = package_list[i]
-        return furthest
+        return adj_matrix[truck.last_stop.get_id() - 1][truck.next_stop.get_id() - 1]

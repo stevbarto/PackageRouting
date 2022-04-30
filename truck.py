@@ -42,18 +42,25 @@ class Truck:
                 self.weight = self.weight + package.get_weight()
 
     def deliver_packages(self, hour, min):
-        location_address = self.route_queue[0].get_address()
+        if len(self.route_queue) > 0:
+            location_address = self.route_queue[0].get_address()
+        else:
+            location_address = self.next_stop.get_address()
+
+        delivered_id = []
         j = 0
         size = len(self.delivery_queue)
         while j < size:
             package_address = self.delivery_queue.pop(0)
             if package_address.get_address() == location_address:
                 package_address.set_status(2, hour, min)
+                delivered_id.append(package_address.get_id())
                 self.load = self.load - 1
                 size = len(self.delivery_queue)
             else:
                 self.delivery_queue.append(package_address)
             j = j + 1
+        return delivered_id
 
     def search_package(self, id):
 

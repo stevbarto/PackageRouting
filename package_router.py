@@ -23,8 +23,8 @@ class PackageRouter:
     drivers = []
     routes = []
     special_cases = []
-    wait_list = []
     visited = []
+    wait_list = []
     map = map_graph.MapGraph()
     locations = []
     current_hub = hub.Hub(-1, "None", "None", "None", "None", "None")
@@ -378,8 +378,18 @@ class PackageRouter:
             if len(self.packages.table[i]) > 0:
                 package = self.packages.table[i][0]
 
-                if package.waitlist == 0 and package.get_truck() == "No truck":
-                    load_queue.append(package)
+                if package.waitlist == 0:
+                    if package.status == 1:
+                        load_queue.append(package)
+
+        for i in range(len(self.package_load_queue)):
+            package = self.package_load_queue[i]
+            for j in range(len(self.locations)):
+                location = self.locations[j]
+                location_index = location.get_id() - 1
+                if package.get_address() == location.get_address():
+                    if self.assigned_addresses[location_index] == 1:
+                        self.assigned_addresses[location_index] = 0
 
         # sort load queue by deadline
         self.package_load_queue = self.sort_package_queue_by_deadline(load_queue)
@@ -427,8 +437,8 @@ class PackageRouter:
 
     def load_truck(self, current_truck, hour, minute, load_queue):
 
-        self.hour_string = hour
-        self.min_string = minute
+        if current_truck.driver == -1:
+            return
 
         # self.recursive_load(hub, truck, queue, self.visited)
         # self.recursive_load2(hub.get_id(), truck, self.visited)
@@ -437,6 +447,14 @@ class PackageRouter:
         base_list = self.map.adj_matrix[0]
 
         base_hub = self.locations[0]
+
+        #furthest_location = self.locations[len(self.locations) - 1]
+
+        #furthest_package = self.get_furthest(self.package_load_queue)
+
+        #for i in range(len(self.locations)):
+        #    if self.locations[i].get_address == furthest_package.get_address():
+        #        furthest_location = self.locations[i]
 
         furthest_point = 0
 
@@ -495,125 +513,6 @@ class PackageRouter:
 
     #                        break
 
-    def recursive_load(self, location, current_truck, queue, visited):
-
-        if current_truck.get_load() >= current_truck.MAX_LOAD:
-            return
-
-        visited.append(location.get_id())
-
-        waitlisted = 0
-
-        row = self.get_location(location)
-
-        list = self.map.adj_matrix[row]
-
-        col = 0
-
-        closest_dist = 1000
-
-        closest_node = self.locations[0]
-
-        been_there = 0
-        # Iterate to get the closest node in the load queue
-        for i in range(len(queue)):
-
-            been_there = 0
-            col = self.get_location(queue[i])
-
-            for k in range(len(visited)):
-                if self.locations[col].get_id() == visited[k]:
-                    been_there = 1
-
-            if 0.0 < float(list[col]) < float(closest_dist) and been_there == 0:
-                if col != row:
-                    closest_dist = list[col]
-                    closest_node = self.locations[col]
-
-        closest_loaded_dist = 1000
-        closest_loaded_node = None
-
-        for j in range(len(self.wait_list)):
-            if self.wait_list[j].get_id() == closest_node.get_id():
-                waitlisted = 1
-
-        if len(current_truck.delivery_queue) > 0:
-            col = self.get_location(current_truck.delivery_queue[0])
-
-            closest_loaded_node = self.locations[col]
-
-            been_there = 0
-            # Iterate to get the closest location of any packages loaded
-            for i in range(len(current_truck.delivery_queue)):
-
-                been_there = 0
-                col = self.get_location(current_truck.delivery_queue[i])
-
-                for k in range(len(visited)):
-                    if self.locations[col].get_id() == visited[k]:
-                        been_there = 1
-
-                if 0.0 < float(list[col]) < float(closest_loaded_dist) and been_there == 0:
-                    if col != row:
-                        closest_loaded_dist = list[col]
-                        closest_loaded_node = self.locations[col]
-
-        next_node = None
-        load_packages = 0
-
-        if float(closest_dist) <= float(closest_loaded_dist):
-            next_node = closest_node
-            load_packages = 1
-        else:
-            next_node = closest_loaded_node
-
-        if load_packages == 1 and waitlisted == 0:
-            for i in range(len(queue)):
-                if queue[i].get_address() == next_node.get_address():
-                    current_truck.load_package(queue[i], self.hour_string, self.min_string)
-            self.recursive_load(next_node, current_truck, queue, visited)
-        else:
-            self.recursive_load(next_node, current_truck, queue, visited)
-
-    def recursive_load2(self, location_id, current_truck, visited):
-
-        if current_truck.get_load() >= current_truck.MAX_LOAD:
-            return 0
-
-        row = location_id - 1
-
-        for i in range(len(visited)):
-            if row == visited[i]:
-                return 0
-
-        for i in range(len(self.wait_list)):
-            if row == i:
-                return 0
-
-        visited.append(row)
-
-        for i in range(len(self.package_load_queue)):
-            load_queue_location = self.package_load_queue[i]
-            ref_location = self.locations[row]
-            if load_queue_location.get_address() == ref_location.get_address():
-                current_truck.load_package(self.package_load_queue[i], self.hour_string, self.min_string)
-
-        adjacent_list = self.map.adj_matrix[row]
-
-        sorted_lists = self.sort_nums(adjacent_list)
-
-        sorted_dist = sorted_lists[0]
-
-        sorted_loc = sorted_lists[1]
-
-        nearest = adjacent_list[1]
-
-        for i in range(len(sorted_dist)):
-            if self.recursive_load2(sorted_loc[i].get_id(), current_truck, visited) == 1:
-                return 1
-
-        return 0
-
     def iterative_route(self, location_id, dest_id):
         # Create a queue of visited locations
         visited_queue = []
@@ -627,9 +526,11 @@ class PackageRouter:
         visited_log[location_id - 1] = 1
 
         # Look for locations in the assigned addresses log and set them to visited, these have had packages delivered
+        open_locations = len(visited_log) - 1
         for i in range(len(self.assigned_addresses)):
             if self.assigned_addresses[i] == 1:
                 visited_log[i] = 1
+                open_locations = open_locations - 1
 
         # Create the path array that will contain the route
         path = []
@@ -644,6 +545,8 @@ class PackageRouter:
         # ==============================================START LOOP HERE==========================================
         # =======================================================================================================
         while len(visited_queue) > 0:
+        #while len(path) < len(self.locations):
+        # while len(path) < open_locations:
 
             if len(path) >= len(self.locations):
                 break
@@ -652,12 +555,11 @@ class PackageRouter:
                 break
 
             # Grab the next up location in the queue to get its nearest neighbor
-            prev_loc_id = current_loc_id
             current_loc_id = visited_queue.pop(0)
 
             # If we have reached the destination ID, break the loop
-            if current_loc_id == dest_id & len(path) > 0:
-                break
+            #if current_loc_id == dest_id & len(path) > 0:
+            #    break
 
             # Get the list of distances from the adjacency matrix for this location
             adjacent_list = self.map.adj_matrix[current_loc_id - 1]
@@ -665,7 +567,7 @@ class PackageRouter:
             # Arbitrarily set the closest index to 0
             closest_index = 0
 
-            if visited_log[closest_index]:
+            if visited_log[closest_index] == 1:
                 if 0 <= closest_index < len(adjacent_list) - 1:
                     closest_index = closest_index + 1
                 elif closest_index == len(adjacent_list) - 1:
@@ -680,25 +582,28 @@ class PackageRouter:
             # =========================== INNER LOOP TO FIND THE CLOSEST NEIGHBOR ==============================
             for i in range(len(adjacent_list)):
 
-                # next_loc_id = self.locations[i].get_id()
+                next_loc_id = self.locations[i].get_id()
 
                 # checks here!
                 # wait listed?
 
                 # If the location is unvisited:
                 if visited_log[i] == 0:
+                    visited_queue.append(next_loc_id)
+                    visited_log[i] = 1
+                    path.append(self.locations[i])
                     # And it is closer than the closest index based on the distance list:
-                    if 0.0 < adjacent_list[i] < adjacent_list[closest_index]:
+                    #if 0.0 < adjacent_list[i] < adjacent_list[closest_index]:
                         # Capture this index as the closest
-                        closest_index = i
+                        #closest_index = i
 
             # Add the closest neighbor to the queue, mark it as visited,
             # add it to path, remove it form loc queue
-            visited_queue.append(closest_index + 1)
-            visited_log[closest_index] = 1
-            path.append(self.locations[closest_index])
-            if self.locations[closest_index].get_id() == dest_id:
-                break
+            #visited_queue.append(closest_index + 1)
+            #visited_log[closest_index] = 1
+            #path.append(self.locations[closest_index])
+            #if self.locations[closest_index].get_id() == dest_id:
+            #    break
             # self.location_queue[closest_index] = 1
             # next_loc_id = self.locations[i].get_id()
 
@@ -774,9 +679,6 @@ class PackageRouter:
         t1_last = truck_one_leg[0].get_id()
         t1_next = truck_one_leg[1].get_id()
 
-        print(t1_last)
-        print(t1_next)
-
         truck_one_leg = self.map.adj_matrix[t1_last - 1][t1_next - 1]
 
         t1_leg_time = truck_one_leg / 18
@@ -797,3 +699,14 @@ class PackageRouter:
         stop_time = [t1_target_hour, t1_target_min]
 
         return stop_time
+
+    def reset_assigned_log(self):
+        for i in range(len(self.locations)):
+            self.assigned_addresses[i] = 0
+
+    def get_furthest(self, package_list):
+        furthest = package_list[0]
+        for i in range(len(package_list)):
+            if self.map.adj_matrix[0][package_list[i].get_id() - 1] < self.map.adj_matrix[0][furthest.get_id() - 1]:
+                furthest = package_list[i]
+        return furthest

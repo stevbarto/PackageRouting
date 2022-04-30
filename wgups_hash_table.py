@@ -146,7 +146,10 @@ class hashTable:
     def hash(self, package_id):
         # TODO: How to determine a hash function for the insert, search, delete functions
         # Determine a unique key, probably the unique ID and weight combined
-        key = package_id
+        if isinstance(package_id, int):
+            key = package_id
+        else:
+            key = package_id.get_id()
 
         # Use the ID and weight as input to create unique hashes, need a good algorithm here
         if self.listSize >= key:

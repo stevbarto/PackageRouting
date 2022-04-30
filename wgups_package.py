@@ -109,8 +109,14 @@ class package:
     def get_city(self):
         return self.city
 
+    def set_city(self, city):
+        self.city = city
+
     def get_zip_code(self):
         return self.zip_code
+
+    def set_zip_code(self, zip_code):
+        self.zip_code = zip_code
 
     def get_weight(self):
         return self.weight
@@ -122,10 +128,10 @@ class package:
             hour_string = self.status_hour - 12
             tod_string = " PM"
 
-        if self.status_hour < 10:
-            min_string = "0" + str(self.status_hour)
+        if self.status_min < 10:
+            min_string = "0" + str(self.status_min)
         else:
-            min_string = str(self.status_hour)
+            min_string = str(self.status_min)
 
 
 
@@ -177,8 +183,13 @@ class package:
         if already_there == 0:
             self.connected_packages.append(package)
 
-    def set_hold(self):
+    def set_hold(self, hour, mintue):
         self.waitlist = 1
+        self.wait_hour = hour
+        self.wait_min = mintue
+
+    def get_hold(self):
+        return [self.wait_hour, self.wait_min]
 
 
 
